@@ -1,0 +1,30 @@
+services:
+  api:
+    build:
+      context: .
+    environment:
+      COMPUTE_ENVIRONMENT: local
+      COMPUTE_DATABASE_URL: postgresql+psycopg://compute:compute@postgres:5432/compute
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: compute
+      POSTGRES_USER: compute
+      POSTGRES_PASSWORD: compute
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U compute -d compute"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  postgres-data:
+
