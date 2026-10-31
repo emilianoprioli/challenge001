@@ -20,6 +20,16 @@ class Settings(BaseSettings):
     database_pool_size: int = 5
     database_max_overflow: int = 5
     database_pool_timeout_seconds: int = 10
+    provider_url: str = "http://127.0.0.1:8001"
+    provider_timeout_seconds: float = 3.0
+    worker_poll_seconds: float = 30.0
+    worker_max_attempts: int = 4
+    cors_allowed_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    simulation_key: str = ""
+
+    @property
+    def allowed_origins(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_allowed_origins.split(",") if origin.strip()]
 
     @field_validator("database_url", mode="before")
     @classmethod

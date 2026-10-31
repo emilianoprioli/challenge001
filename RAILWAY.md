@@ -1,67 +1,101 @@
-# Deploy en Railway
+# Arquitectura Railway
 
-## 1. Crear el proyecto
-
-1. Crear un proyecto en Railway.
-2. Agregar un servicio PostgreSQL llamado `Postgres`.
-3. Crear el servicio API desde el repositorio.
-4. Dejar Root Directory vacío o `/`, porque este repositorio Git comienza
-   directamente en el workspace del microservicio.
-
-Railway detectará el `Dockerfile` en la raíz del repositorio.
-
-## 2. Variables del servicio API
-
-En Variables → Raw Editor, pegar el contenido de `.env.railway.example`.
-
-La referencia:
+Un solo repositorio alimenta tres servicios con comandos de inicio diferentes.
 
 ```text
+Visualizador local -> HTTPS -> API publica
+                                |
+                      PostgreSQL privado
+                                |
+                         Worker privado
+                                |
+                       Provider privado
+```
+
+## Postgres
+
+Crear una base llamada `Postgres`. No necesita dominio publico.
+
+## API
+
+- Source: este repositorio.
+- Public Networking: habilitado.
+- Pre-deploy command: `alembic upgrade head`.
+- Healthcheck: `/health/ready`.
+- Start command:
+
+```text
+/bin/sh -c "exec uvicorn compute_provisioner.main:app --host 0.0.0.0 --port $PORT"
+```
+
+Variables:
+
+```text
+COMPUTE_ENVIRONMENT=production
 COMPUTE_DATABASE_URL=${{Postgres.DATABASE_URL}}
+COMPUTE_DATABASE_POOL_SIZE=5
+COMPUTE_DATABASE_MAX_OVERFLOW=5
+COMPUTE_DATABASE_POOL_TIMEOUT_SECONDS=10
+COMPUTE_CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+COMPUTE_SIMULATION_KEY=<secreto-aleatorio>
 ```
 
-utiliza la red privada entre el servicio API y PostgreSQL. No es necesario exponer
-la base públicamente.
+## Provider
 
-Railway inyecta automáticamente `PORT`; el container ya está configurado para
-escucharlo.
-
-## 3. Migraciones
-
-En Settings → Deploy → Pre-Deploy Command configurar:
+- Source: el mismo repositorio.
+- Public Networking: deshabilitado.
+- Variable `PORT=8080` para fijar el puerto privado.
+- Start command:
 
 ```text
-alembic upgrade head
+uvicorn compute_provisioner.provider_simulator:app --host 0.0.0.0 --port 8080
 ```
 
-Configurar un timeout de 300 segundos. Si la migración falla, el deploy no debe
-continuar.
+## Worker
 
-## 4. Health check
+- Source: el mismo repositorio.
+- Public Networking: deshabilitado.
+- Sin healthcheck HTTP.
+- Start command: `python -m compute_provisioner.worker`.
 
-En Settings → Deploy → Healthcheck Path configurar:
+Variables:
 
 ```text
-/health/live
+COMPUTE_ENVIRONMENT=production
+COMPUTE_DATABASE_URL=${{Postgres.DATABASE_URL}}
+COMPUTE_PROVIDER_URL=http://provider.railway.internal:8080
+COMPUTE_PROVIDER_TIMEOUT_SECONDS=3
+COMPUTE_WORKER_POLL_SECONDS=30
+COMPUTE_WORKER_MAX_ATTEMPTS=4
 ```
 
-## 5. Dominio público
+El worker mantiene una conexion PostgreSQL para `LISTEN resource_requests`. La fila en
+`resource_requests` es la garantia durable: si se pierde una notificacion, el polling de
+respaldo encuentra el trabajo como maximo 30 segundos despues.
 
-En Settings → Networking generar un dominio público para el servicio API. La base
-de datos debe permanecer privada.
+## Visualizador como cliente externo
 
-## 6. Verificación inicial
+```powershell
+python -m http.server 5173 --directory src/compute_provisioner/web/simulator
+```
+
+Abrir, reemplazando el dominio:
 
 ```text
-GET https://<dominio>/health/live
+http://localhost:5173/?api=https://api-production.up.railway.app
 ```
 
-Debe responder:
+La API debe incluir exactamente el origen local utilizado dentro de
+`COMPUTE_CORS_ALLOWED_ORIGINS`.
+Al abrir una API remota, el visualizador solicita la clave del laboratorio y la
+conserva solamente en `sessionStorage`.
 
-```json
-{"status":"ok"}
-```
+## Verificacion
 
-Las pruebas de carga se agregarán después de implementar los endpoints de negocio.
-Se ejecutarán de forma gradual, con límites de concurrencia y presupuesto para no
-generar costos inesperados.
+1. `GET https://<api>/health/live` prueba el proceso.
+2. `GET https://<api>/health/ready` prueba proceso y PostgreSQL.
+3. Crear una request desde el visualizador.
+4. Confirmar en logs que el worker recibe `NOTIFY`.
+5. Confirmar `PENDING -> PROVISIONING -> ACTIVE`.
+
+No habilitar dominios publicos para PostgreSQL, Worker ni Provider.

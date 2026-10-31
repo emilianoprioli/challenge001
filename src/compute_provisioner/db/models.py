@@ -231,6 +231,20 @@ class ResourceRequest(TimestampMixin, Base):
     memory_per_replica_mb: Mapped[int] = mapped_column(BigInteger, nullable=False)
     replicas: Mapped[int] = mapped_column(Integer, nullable=False)
     external_operation_id: Mapped[str | None] = mapped_column(String(255), unique=True)
+    attempt_count: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+    next_retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    processing_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    processing_owner: Mapped[str | None] = mapped_column(String(120))
+    last_error: Mapped[str | None] = mapped_column(String(500))
+    simulated_scenario: Mapped[str] = mapped_column(
+        String(30), nullable=False, default="healthy", server_default="healthy"
+    )
+    last_provider_scenario: Mapped[str | None] = mapped_column(String(30))
 
     application: Mapped[Application] = relationship(back_populates="resource_requests")
     status: Mapped[RequestStatus] = relationship(back_populates="resource_requests")
@@ -268,3 +282,24 @@ class AuditEvent(Base):
 
     department: Mapped[Department] = relationship(back_populates="audit_events")
     application: Mapped[Application | None] = relationship(back_populates="audit_events")
+
+
+class SimulationControl(Base):
+    __tablename__ = "simulation_controls"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1, server_default="1")
+    worker_paused: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="false",
+    )
+    degraded_mode: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="false",
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    )

@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Compute Provisioner · Simulador local</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">COMPUTE PROVISIONER</p>
+        <h1>Flujo de aprovisionamiento</h1>
+        <p class="subtitle">Simulación local de la arquitectura lógica. No representa un clúster Kubernetes real.</p>
+      </div>
+      <div class="system-state"><span class="pulse"></span><span id="system-label">Sistema normal</span></div>
+    </header>
+
+    <section class="metrics" aria-label="Métricas de la simulación">
+      <article><span>Recibidas</span><strong id="metric-received">0</strong></article>
+      <article><span>Pendientes</span><strong id="metric-pending">0</strong></article>
+      <article><span>Activas</span><strong id="metric-active">0</strong></article>
+      <article><span>Fallidas / desconocidas</span><strong id="metric-problem">0</strong></article>
+    </section>
+
+    <section class="workspace">
+      <aside class="controls">
+        <div>
+          <p class="section-label">Generar tráfico</p>
+          <button class="primary" id="send-one">Enviar request</button>
+          <button id="send-burst">Ráfaga de 10</button>
+        </div>
+
+        <div>
+          <p class="section-label">Perfil de fallos</p>
+          <label><input type="radio" name="provider" value="normal" checked> Normal · 100% healthy</label>
+          <label><input type="radio" name="provider" value="degraded"> Degradado · 20% afectadas</label>
+          <label><input type="radio" name="provider" value="critical"> Crítico · 70% afectadas</label>
+        </div>
+
+        <div>
+          <p class="section-label">Operación</p>
+          <label class="switch"><input id="worker-toggle" type="checkbox" checked><span></span> Worker activo</label>
+          <label class="switch"><input id="degraded-toggle" type="checkbox"><span></span> Modo degradado</label>
+        </div>
+
+        <button class="quiet" id="reset">Reiniciar simulación</button>
+      </aside>
+
+      <div class="canvas-wrap">
+        <svg id="architecture" viewBox="0 0 980 620" role="img" aria-labelledby="diagram-title diagram-desc">
+          <title id="diagram-title">Arquitectura lógica del Compute Provisioner</title>
+          <desc id="diagram-desc">Las solicitudes pasan del cliente al balanceador, las API, PostgreSQL, el worker y el proveedor externo.</desc>
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z"></path>
+            </marker>
+            <filter id="dot-glow"><feGaussianBlur stdDeviation="3" result="blur"></feGaussianBlur><feMerge><feMergeNode in="blur"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge></filter>
+          </defs>
+
+          <g class="zone">
+            <rect x="28" y="105" width="924" height="485" rx="18"></rect>
+            <text x="52" y="137">Arquitectura lógica desplegable en un orquestador</text>
+          </g>
+
+          <g class="connections" fill="none">
+            <path id="path-client-lb" d="M490 78 L490 170"></path>
+            <path id="path-lb-api1" d="M490 224 C390 240 245 245 200 292"></path>
+            <path id="path-lb-api2" d="M490 224 L490 292"></path>
+            <path id="path-lb-api3" d="M490 224 C590 240 735 245 780 292"></path>
+            <path id="path-api1-db" d="M200 354 C200 415 370 410 425 450"></path>
+            <path id="path-api2-db" d="M490 354 L490 450"></path>
+            <path id="path-api3-db" d="M780 354 C780 415 610 410 555 450"></path>
+            <path id="path-db-worker" d="M575 492 C640 492 635 398 695 398"></path>
+            <path id="path-worker-provider" d="M780 430 L780 510"></path>
+            <path id="path-provider-db" d="M690 548 C610 585 525 570 510 525"></path>
+          </g>
+
+          <g class="node client" data-node="client"><rect x="430" y="25" width="120" height="54" rx="14"></rect><text x="490" y="58">Cliente</text></g>
+          <g class="node" data-node="lb"><rect x="375" y="170" width="230" height="55" rx="14"></rect><text x="490" y="203">Service / Load Balancer</text></g>
+          <g class="node api" data-node="api1"><rect x="130" y="292" width="140" height="63" rx="14"></rect><text x="200" y="320">Pod API 1</text><text class="node-status" x="200" y="340">READY</text></g>
+          <g class="node api" data-node="api2"><rect x="420" y="292" width="140" height="63" rx="14"></rect><text x="490" y="320">Pod API 2</text><text class="node-status" x="490" y="340">READY</text></g>
+          <g class="node api" data-node="api3"><rect x="710" y="292" width="140" height="63" rx="14"></rect><text x="780" y="320">Pod API 3</text><text class="node-status" x="780" y="340">READY</text></g>
+          <g class="node database" data-node="db"><path d="M405 462 C405 445 575 445 575 462 L575 512 C575 530 405 530 405 512 Z"></path><ellipse cx="490" cy="462" rx="85" ry="16"></ellipse><text x="490" y="493">PostgreSQL</text><text class="node-status" x="490" y="512">0 PENDING</text></g>
+          <g class="node worker" data-node="worker"><rect x="695" y="370" width="170" height="61" rx="14"></rect><text x="780" y="397">Worker + reconciliador</text><text class="node-status" id="worker-status" x="780" y="417">POLLING</text></g>
+          <g class="node provider" data-node="provider"><rect x="675" y="510" width="210" height="62" rx="14"></rect><text x="780" y="538">Proveedor externo</text><text class="node-status" id="provider-status" x="780" y="558">PERFIL NORMAL</text></g>
+
+          <g id="request-dots"></g>
+        </svg>
+
+        <div class="legend" aria-label="Estados">
+          <span><i class="received"></i>Recibida</span><span><i class="pending"></i>Pendiente</span><span><i class="provisioning"></i>Provisionando</span><span><i class="active"></i>Activa</span><span><i class="unknown"></i>Desconocida</span><span><i class="failed"></i>Fallida</span>
+        </div>
+      </div>
+
+      <aside class="event-panel">
+        <div class="event-heading"><div><p class="section-label">Trazas</p><h2>Últimos eventos</h2></div><span id="clock">00:00:00</span></div>
+        <ol id="event-log" aria-live="polite"><li class="empty">Enviá una request para comenzar.</li></ol>
+      </aside>
+    </section>
+  </main>
+  <script src="./simulator.js"></script>
+</body>
+</html>

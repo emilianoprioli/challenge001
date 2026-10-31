@@ -1,4 +1,9 @@
+from pathlib import Path
+
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 from compute_provisioner.api.router import api_router
 from compute_provisioner.core.config import get_settings
@@ -12,7 +17,26 @@ def create_app() -> FastAPI:
         docs_url="/docs" if settings.environment != "production" else None,
         redoc_url=None,
     )
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.allowed_origins,
+        allow_credentials=False,
+        allow_methods=["GET", "POST", "PUT", "OPTIONS"],
+        allow_headers=["Content-Type", "Idempotency-Key", "X-Simulation-Key"],
+    )
     application.include_router(api_router)
+
+    simulator_directory = Path(__file__).parent / "web" / "simulator"
+    application.mount(
+        "/simulator",
+        StaticFiles(directory=simulator_directory, html=True),
+        name="simulator",
+    )
+
+    @application.get("/", include_in_schema=False)
+    async def root() -> RedirectResponse:
+        return RedirectResponse(url="/simulator/")
+
     return application
 
 
