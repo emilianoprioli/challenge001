@@ -70,6 +70,17 @@ class SimulationControlInput(BaseModel):
     degraded_mode: bool
 
 
+class DemoConfiguration(BaseModel):
+    department_max_cpu: Decimal = Field(gt=0)
+    department_max_memory_mb: int = Field(gt=0)
+    max_pending_requests: int = Field(gt=0, le=1000)
+    max_cpu_per_replica: Decimal = Field(gt=0)
+    max_memory_per_replica_mb: int = Field(gt=0)
+    max_replicas: int = Field(gt=0)
+    max_total_cpu: Decimal = Field(gt=0)
+    max_total_memory_mb: int = Field(gt=0)
+
+
 def serialize_request(request: ResourceRequest, status_code: str) -> ResourceRequestOutput:
     return ResourceRequestOutput(
         id=request.id,
@@ -151,6 +162,44 @@ def update_simulation_control(
     return payload
 
 
+@router.get("/demo/config", response_model=DemoConfiguration)
+def get_demo_configuration(session: DbSession) -> DemoConfiguration:
+    application = session.scalar(select(Application).where(Application.name == "payments-api"))
+    if application is None:
+        raise HTTPException(status_code=404, detail="demo is not initialized")
+    department = session.get(Department, application.department_id)
+    policy = session.get(ApplicationResourcePolicy, application.id)
+    return DemoConfiguration(
+        department_max_cpu=department.max_cpu,
+        department_max_memory_mb=department.max_memory_mb,
+        max_pending_requests=department.max_pending_requests,
+        max_cpu_per_replica=policy.max_cpu_per_replica,
+        max_memory_per_replica_mb=policy.max_memory_per_replica_mb,
+        max_replicas=policy.max_replicas,
+        max_total_cpu=policy.max_total_cpu,
+        max_total_memory_mb=policy.max_total_memory_mb,
+    )
+
+
+@router.put("/demo/config", response_model=DemoConfiguration)
+def update_demo_configuration(payload: DemoConfiguration, session: DbSession) -> DemoConfiguration:
+    with session.begin():
+        application = session.scalar(select(Application).where(Application.name == "payments-api"))
+        if application is None:
+            raise HTTPException(status_code=404, detail="demo is not initialized")
+        department = session.get(Department, application.department_id, with_for_update=True)
+        policy = session.get(ApplicationResourcePolicy, application.id, with_for_update=True)
+        department.max_cpu = payload.department_max_cpu
+        department.max_memory_mb = payload.department_max_memory_mb
+        department.max_pending_requests = payload.max_pending_requests
+        policy.max_cpu_per_replica = payload.max_cpu_per_replica
+        policy.max_memory_per_replica_mb = payload.max_memory_per_replica_mb
+        policy.max_replicas = payload.max_replicas
+        policy.max_total_cpu = payload.max_total_cpu
+        policy.max_total_memory_mb = payload.max_total_memory_mb
+    return payload
+
+
 @router.post(
     "/applications/{application_id}/resource-requests",
     response_model=ResourceRequestOutput,
@@ -198,6 +247,17 @@ def create_resource_request(
             .where(Department.id == application.department_id)
             .with_for_update()
         )
+        existing = session.scalar(
+            select(ResourceRequest).where(
+                ResourceRequest.application_id == application_id,
+                ResourceRequest.idempotency_key == idempotency_key,
+            )
+        )
+        if existing is not None:
+            if existing.request_hash != request_hash:
+                raise HTTPException(status_code=409, detail="idempotency key conflict")
+            return serialize_request(existing, existing.status.code)
+
         policy = session.get(ApplicationResourcePolicy, application_id)
         if policy is None:
             raise HTTPException(status_code=409, detail="application has no resource policy")
@@ -229,6 +289,22 @@ def create_resource_request(
         exceeds_memory = used_memory + total_memory > department.max_memory_mb
         if exceeds_cpu or exceeds_memory:
             raise HTTPException(status_code=409, detail="department quota is insufficient")
+
+        inflight = session.scalar(
+            select(func.count(ResourceRequest.id))
+            .join(RequestStatus, RequestStatus.id == ResourceRequest.status_id)
+            .join(Application, Application.id == ResourceRequest.application_id)
+            .where(
+                Application.department_id == department.id,
+                RequestStatus.code.in_(["PENDING", "PROVISIONING", "UNKNOWN"]),
+            )
+        )
+        if inflight >= department.max_pending_requests:
+            raise HTTPException(
+                status_code=429,
+                detail="department has reached its pending request limit",
+                headers={"Retry-After": "5"},
+            )
 
         if current is None:
             current = ApplicationResourceDesired(application_id=application_id)

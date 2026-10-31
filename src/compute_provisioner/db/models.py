@@ -49,6 +49,9 @@ class Department(TimestampMixin, Base):
     name: Mapped[str] = mapped_column(String(120), nullable=False, unique=True)
     max_cpu: Mapped[Decimal] = mapped_column(Numeric(12, 3), nullable=False)
     max_memory_mb: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    max_pending_requests: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=100, server_default="100"
+    )
 
     applications: Mapped[list[Application]] = relationship(back_populates="department")
     audit_events: Mapped[list[AuditEvent]] = relationship(back_populates="department")
