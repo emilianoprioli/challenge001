@@ -71,9 +71,16 @@ async function transition(request, next, error) {
     await move(request, "path-db-worker"); state(request, next); event(request, "Worker reclamó la fila con SKIP LOCKED.");
     await move(request, "path-worker-provider");
   } else if (next === "ACTIVE") {
-    if (request.status === "UNKNOWN") await move(request, "path-provider-db", 650);
+    if (request.status === "PENDING" && request.attemptCount > 0) {
+      await move(request, "path-db-worker");
+      state(request, "PROVISIONING");
+      event(request, "Worker procesó la solicitud entre dos muestras; reproduciendo el recorrido persistido.");
+      await move(request, "path-worker-provider");
+    } else if (request.status === "UNKNOWN") {
+      await move(request, "path-provider-db", 650);
+    }
     state(request, next); event(request, "Proveedor confirmado; observation persistida como ACTIVE.", "success");
-    setTimeout(() => request.element?.remove(), 1400);
+    setTimeout(() => request.element?.remove(), 4000);
   } else if (next === "UNKNOWN") {
     state(request, next); event(request, error || "Resultado externo desconocido; esperando reconciliación.", "problem");
   } else if (next === "FAILED") {
@@ -101,11 +108,11 @@ async function refresh() {
     for (const row of rows) {
       let request = tracked.get(row.id);
       if (!request) {
-        request = { id: row.id, short: row.id.slice(0, 8), api: (roundRobin++ % 3) + 1, status: row.status, remoteStatus: row.status };
+        request = { id: row.id, short: row.id.slice(0, 8), api: (roundRobin++ % 3) + 1, status: row.status, remoteStatus: row.status, restored: true };
         tracked.set(row.id, request); createDot(request, 490, row.status === "PENDING" ? 475 : 540);
         event(request, `Recuperada desde PostgreSQL en estado ${row.status}.`);
       }
-      request.remoteStatus = row.status; request.lastError = row.last_error;
+      request.remoteStatus = row.status; request.lastError = row.last_error; request.attemptCount = row.attempt_count;
       if (row.last_provider_scenario && request.lastProviderScenario !== row.last_provider_scenario) {
         request.lastProviderScenario = row.last_provider_scenario;
         event(request, `Perfil ${row.simulated_scenario}: el intento obtuvo ${row.last_provider_scenario}.`, row.last_provider_scenario === "healthy" ? "" : "problem");
