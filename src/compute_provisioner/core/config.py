@@ -25,7 +25,6 @@ class Settings(BaseSettings):
     worker_poll_seconds: float = 30.0
     worker_max_attempts: int = 4
     cors_allowed_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
-    simulation_key: str = ""
 
     @property
     def allowed_origins(self) -> list[str]:

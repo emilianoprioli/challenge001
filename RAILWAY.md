@@ -37,7 +37,6 @@ COMPUTE_DATABASE_POOL_SIZE=5
 COMPUTE_DATABASE_MAX_OVERFLOW=5
 COMPUTE_DATABASE_POOL_TIMEOUT_SECONDS=10
 COMPUTE_CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
-COMPUTE_SIMULATION_KEY=<secreto-aleatorio>
 ```
 
 ## Provider
@@ -87,8 +86,6 @@ http://localhost:5173/?api=https://api-production.up.railway.app
 
 La API debe incluir exactamente el origen local utilizado dentro de
 `COMPUTE_CORS_ALLOWED_ORIGINS`.
-Al abrir una API remota, el visualizador solicita la clave del laboratorio y la
-conserva solamente en `sessionStorage`.
 
 ## Verificacion
 

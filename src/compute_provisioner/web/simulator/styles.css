@@ -41,9 +41,6 @@ button { background: var(--panel-soft); border: 1px solid #40516b; border-radius
 button:hover { border-color: var(--blue); transform: translateY(-1px); }
 button.primary { background: #1766aa; border-color: #3d91d8; }
 button.quiet { color: var(--muted); margin-top: auto; }
-input[type="password"] { background: #0b1423; border: 1px solid #40516b; border-radius: 8px; color: var(--text); min-width: 0; padding: 9px 10px; width: 100%; }
-input[type="password"]:focus { border-color: var(--blue); outline: 2px solid rgba(80,167,255,.2); }
-.field-label { color: var(--muted) !important; font-size: 11px !important; }
 input[type="radio"] { accent-color: var(--blue); }
 .switch input { position: absolute; opacity: 0; }
 .switch span { background: #35445a; border-radius: 20px; height: 20px; position: relative; width: 36px; }

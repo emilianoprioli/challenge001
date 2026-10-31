@@ -10,7 +10,6 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from compute_provisioner.core.config import get_settings
 from compute_provisioner.db.models import (
     Application,
     ApplicationResourceDesired,
@@ -23,18 +22,7 @@ from compute_provisioner.db.models import (
 )
 from compute_provisioner.db.session import get_db_session
 
-
-def require_lab_access(x_simulation_key: Annotated[str | None, Header()] = None) -> None:
-    expected = get_settings().simulation_key
-    if expected and x_simulation_key != expected:
-        raise HTTPException(status_code=401, detail="invalid or missing simulation key")
-
-
-router = APIRouter(
-    prefix="/api/v1",
-    tags=["resource requests"],
-    dependencies=[Depends(require_lab_access)],
-)
+router = APIRouter(prefix="/api/v1", tags=["resource requests"])
 DbSession = Annotated[Session, Depends(get_db_session)]
 Scenario = Literal[
     "normal",

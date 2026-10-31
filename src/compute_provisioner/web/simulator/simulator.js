@@ -5,9 +5,7 @@ const degradedToggle = document.getElementById("degraded-toggle");
 const colors = { RECEIVED: "#50a7ff", PENDING: "#f8c45c", PROVISIONING: "#b792ff", ACTIVE: "#49d695", UNKNOWN: "#ff945d", FAILED: "#ff6377" };
 const remoteApi = new URLSearchParams(window.location.search).get("api");
 const apiBase = remoteApi ? remoteApi.replace(/\/$/, "") : "";
-let simulationKey = sessionStorage.getItem("compute-simulation-key") || "";
 document.getElementById("api-target").textContent = remoteApi ? new URL(apiBase).hostname : "API local";
-document.getElementById("remote-access").hidden = !remoteApi;
 const tracked = new Map();
 let demo;
 let sequence = 0;
@@ -18,7 +16,7 @@ const apiPath = n => `path-lb-api${n}`;
 const dbPath = n => `path-api${n}-db`;
 
 async function api(path, options = {}) {
-  const response = await fetch(`${apiBase}${path}`, { ...options, headers: { "Content-Type": "application/json", "X-Simulation-Key": simulationKey, ...(options.headers || {}) } });
+  const response = await fetch(`${apiBase}${path}`, { ...options, headers: { "Content-Type": "application/json", ...(options.headers || {}) } });
   if (!response.ok) throw new Error((await response.json()).detail || `HTTP ${response.status}`);
   return response.json();
 }
@@ -96,7 +94,6 @@ function metrics(rows) {
 }
 
 async function refresh() {
-  if (remoteApi && !simulationKey) return;
   try {
     const started = performance.now();
     const rows = await api("/api/v1/resource-requests?limit=100"); metrics(rows);
@@ -144,19 +141,10 @@ document.querySelectorAll('input[name="provider"]').forEach(input => input.addEv
   document.getElementById("provider-status").textContent = { normal: "PERFIL NORMAL", degraded: "PERFIL DEGRADADO", critical: "PERFIL CRÍTICO" }[scenario()];
 }));
 document.getElementById("reset").addEventListener("click", () => { dots.replaceChildren(); tracked.clear(); log.innerHTML = '<li class="empty">La base no se borra: reconstruyendo desde PostgreSQL.</li>'; refresh(); });
-document.getElementById("connect-api").addEventListener("click", () => {
-  simulationKey = document.getElementById("simulation-key").value.trim();
-  if (simulationKey) sessionStorage.setItem("compute-simulation-key", simulationKey);
-  initialize();
-});
 setInterval(() => { document.getElementById("clock").textContent = new Date().toLocaleTimeString(); }, 1000);
 setInterval(refresh, 800);
 
 async function initialize() {
-  if (remoteApi && !simulationKey) {
-    document.getElementById("system-label").textContent = "Ingresá la clave del laboratorio";
-    return;
-  }
   try {
     demo = await api("/api/v1/demo/bootstrap", { method: "POST" });
     const control = await api("/api/v1/demo/control"); workerToggle.checked = !control.worker_paused; degradedToggle.checked = control.degraded_mode;
