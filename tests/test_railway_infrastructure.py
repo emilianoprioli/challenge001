@@ -32,6 +32,9 @@ def test_normalizes_services_replicas_and_instance_metrics() -> None:
                                         "serviceName": "API",
                                         "region": "us-east",
                                         "numReplicas": 2,
+                                        "multiRegionConfig": {
+                                            "us-east": {"numReplicas": 3}
+                                        },
                                         "latestDeployment": {
                                             "id": "deployment-1",
                                             "status": "SUCCESS",
@@ -75,7 +78,7 @@ def test_normalizes_services_replicas_and_instance_metrics() -> None:
     snapshot = client.snapshot()
 
     assert snapshot["connected"] is True
-    assert snapshot["services"][0]["replicas_configured"] == 2
+    assert snapshot["services"][0]["replicas_configured"] == 3
     assert snapshot["environment"] == {"name": "production"}
     assert snapshot["services"][0]["instances"][0]["instance_id"] == "replica-abcdef12"
     assert snapshot["services"][0]["instances"][0]["cpu_usage"] == 0.25

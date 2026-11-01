@@ -22,6 +22,7 @@ query Infrastructure($environmentId: String!, $startDate: DateTime!) {
           serviceName
           region
           numReplicas
+          multiRegionConfig
           latestDeployment { id status createdAt }
         }
       }
@@ -114,7 +115,7 @@ class RailwayInfrastructureClient:
                 {
                     "name": node.get("serviceName"),
                     "region": node.get("region"),
-                    "replicas_configured": node.get("numReplicas") or 1,
+                    "replicas_configured": self._configured_replicas(node),
                     "deployment": self._public_deployment(node.get("latestDeployment")),
                     "instances": instances,
                 }
@@ -156,6 +157,16 @@ class RailwayInfrastructureClient:
         if not deployment:
             return None
         return {"status": deployment.get("status"), "created_at": deployment.get("createdAt")}
+
+    @staticmethod
+    def _configured_replicas(service: dict[str, Any]) -> int:
+        regions = service.get("multiRegionConfig") or {}
+        configured = sum(
+            region.get("numReplicas", 0)
+            for region in regions.values()
+            if isinstance(region, dict)
+        )
+        return configured or service.get("numReplicas") or 1
 
     @staticmethod
     def _error(message: str) -> dict[str, Any]:
