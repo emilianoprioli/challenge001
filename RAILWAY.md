@@ -62,6 +62,9 @@ uvicorn compute_provisioner.provider_simulator:app --host 0.0.0.0 --port 8080
 Variables para que la capacidad sea finita y observable:
 
 ```text
+COMPUTE_DATABASE_URL=${{Postgres.DATABASE_URL}}
+COMPUTE_DATABASE_POOL_SIZE=3
+COMPUTE_DATABASE_MAX_OVERFLOW=2
 COMPUTE_PROVIDER_MAX_CONCURRENCY=5
 COMPUTE_PROVIDER_MAX_QUEUE_SIZE=20
 COMPUTE_PROVIDER_PROCESSING_MS=250
