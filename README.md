@@ -62,6 +62,10 @@ El visualizador de capacidad está disponible en `/simulator/capacity.html`. Eje
 cliente local también acepta `?api=https://<dominio-api>` y descubre qué réplicas de API
 responden detrás del balanceador.
 
+Cada solicitud conserva además la réplica real de API, Worker y Provider que participó en
+su recorrido. El visualizador de flujo usa esas identidades persistidas; no distribuye los
+puntos mediante un round-robin ficticio.
+
 ## Perfiles de fallos
 
 El visualizador permite elegir un perfil por solicitud. El worker sortea un escenario nuevo

@@ -11,16 +11,30 @@ document.getElementById("capacity-link").href = `./capacity.html${remoteApi ? `?
 const tracked = new Map();
 let demo;
 let sequence = 0;
-let roundRobin = 0;
+const apiSlots = new Map();
 
 const scenario = () => document.querySelector('input[name="provider"]:checked').value;
 const apiPath = n => `path-lb-api${n}`;
 const dbPath = n => `path-api${n}-db`;
 
-async function api(path, options = {}) {
+async function apiWithMeta(path, options = {}) {
   const response = await fetch(`${apiBase}${path}`, { ...options, headers: { "Content-Type": "application/json", ...(options.headers || {}) } });
   if (!response.ok) throw new Error((await response.json()).detail || `HTTP ${response.status}`);
-  return response.json();
+  return { data: await response.json(), instanceId: response.headers.get("X-Instance-ID") };
+}
+
+async function api(path, options = {}) { return (await apiWithMeta(path, options)).data; }
+
+function slotFor(instanceId) {
+  if (!instanceId) return 2;
+  if (!apiSlots.has(instanceId)) {
+    const free = [1, 2, 3].find(slot => ![...apiSlots.values()].includes(slot)) || 2;
+    apiSlots.set(instanceId, free);
+    const node = document.querySelector(`[data-node="api${free}"]`);
+    node.querySelector("text:not(.node-status)").textContent = instanceId;
+    node.querySelector(".node-status").textContent = "OBSERVADA";
+  }
+  return apiSlots.get(instanceId);
 }
 
 function event(request, message, kind = "") {
@@ -60,7 +74,7 @@ async function move(request, pathId, duration = 450) {
 async function animateAccepted(request) {
   request.animating = true; event(request, "Solicitud enviada a la API real.");
   await move(request, "path-client-lb", 350); await move(request, apiPath(request.api), degradedToggle.checked ? 1000 : 450);
-  event(request, `API ${request.api}: política, cuota e idempotencia validadas.`);
+  event(request, `${request.apiInstanceId || "API"}: política, cuota e idempotencia validadas.`);
   await move(request, dbPath(request.api)); state(request, "PENDING");
   event(request, "Persistida realmente en PostgreSQL como PENDING."); request.animating = false;
   if (request.remoteStatus !== "PENDING") transition(request, request.remoteStatus, request.lastError);
@@ -70,18 +84,18 @@ async function transition(request, next, error) {
   if (request.animating || request.transitioning || request.status === next) return;
   request.transitioning = true;
   if (next === "PROVISIONING") {
-    await move(request, "path-db-worker"); state(request, next); event(request, "Worker reclamó la fila con SKIP LOCKED.");
+    await move(request, "path-db-worker"); state(request, next); event(request, `${request.workerInstanceId || "Worker"} reclamó la fila con SKIP LOCKED.`);
     await move(request, "path-worker-provider");
   } else if (next === "ACTIVE") {
     if (request.status === "PENDING" && request.attemptCount > 0) {
       await move(request, "path-db-worker");
       state(request, "PROVISIONING");
-      event(request, "Worker procesó la solicitud entre dos muestras; reproduciendo el recorrido persistido.");
+      event(request, `${request.workerInstanceId || "Worker"} procesó la solicitud entre dos muestras; reproduciendo el recorrido persistido.`);
       await move(request, "path-worker-provider");
     } else if (request.status === "UNKNOWN") {
       await move(request, "path-provider-db", 650);
     }
-    state(request, next); event(request, "Proveedor confirmado; observation persistida como ACTIVE.", "success");
+    state(request, next); event(request, `${request.providerInstanceId || "Provider"} confirmó el recurso; observation persistida como ACTIVE.`, "success");
     setTimeout(() => request.element?.remove(), 4000);
   } else if (next === "UNKNOWN") {
     state(request, next); event(request, error || "Resultado externo desconocido; esperando reconciliación.", "problem");
@@ -110,11 +124,14 @@ async function refresh() {
     for (const row of rows) {
       let request = tracked.get(row.id);
       if (!request) {
-        request = { id: row.id, short: row.id.slice(0, 8), api: (roundRobin++ % 3) + 1, status: row.status, remoteStatus: row.status, restored: true };
+        request = { id: row.id, short: row.id.slice(0, 8), apiInstanceId: row.api_instance_id, api: slotFor(row.api_instance_id), status: row.status, remoteStatus: row.status, restored: true };
         tracked.set(row.id, request); createDot(request, 490, row.status === "PENDING" ? 475 : 540);
         event(request, `Recuperada desde PostgreSQL en estado ${row.status}.`);
       }
       request.remoteStatus = row.status; request.lastError = row.last_error; request.attemptCount = row.attempt_count;
+      request.apiInstanceId = row.api_instance_id || request.apiInstanceId;
+      request.workerInstanceId = row.worker_instance_id;
+      request.providerInstanceId = row.provider_instance_id;
       if (row.last_provider_scenario && request.lastProviderScenario !== row.last_provider_scenario) {
         request.lastProviderScenario = row.last_provider_scenario;
         event(request, `Perfil ${row.simulated_scenario}: el intento obtuvo ${row.last_provider_scenario}.`, row.last_provider_scenario === "healthy" ? "" : "problem");
@@ -126,13 +143,18 @@ async function refresh() {
 
 async function sendRequest() {
   if (!demo) return;
-  const request = { short: `req-${String(++sequence).padStart(3, "0")}`, api: (roundRobin++ % 3) + 1, status: "RECEIVED", remoteStatus: "PENDING" };
+  const request = { short: `req-${String(++sequence).padStart(3, "0")}`, api: 2, status: "RECEIVED", remoteStatus: "PENDING" };
   createDot(request);
   try {
-    const row = await api(`/api/v1/applications/${demo.application_id}/resource-requests`, {
+    const result = await apiWithMeta(`/api/v1/applications/${demo.application_id}/resource-requests`, {
       method: "POST", headers: { "Idempotency-Key": crypto.randomUUID() },
       body: JSON.stringify({ cpu_per_replica: 1, memory_per_replica_mb: 512, replicas: 2, simulated_scenario: scenario() })
     });
+    const row = result.data;
+    request.apiInstanceId = row.api_instance_id || result.instanceId;
+    request.api = slotFor(request.apiInstanceId);
+    request.workerInstanceId = row.worker_instance_id;
+    request.providerInstanceId = row.provider_instance_id;
     request.id = row.id; tracked.set(row.id, request); animateAccepted(request);
   } catch (error) { state(request, "FAILED"); event(request, error.message, "problem"); }
 }

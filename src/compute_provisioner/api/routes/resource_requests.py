@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from compute_provisioner.core.instance import instance_id, public_instance_id
 from compute_provisioner.db.models import (
     Application,
     ApplicationResourceDesired,
@@ -54,6 +55,9 @@ class ResourceRequestOutput(BaseModel):
     last_error: str | None
     simulated_scenario: str
     last_provider_scenario: str | None
+    api_instance_id: str | None
+    worker_instance_id: str | None
+    provider_instance_id: str | None
     created_at: datetime
     updated_at: datetime
 
@@ -94,6 +98,9 @@ def serialize_request(request: ResourceRequest, status_code: str) -> ResourceReq
         last_error=request.last_error,
         simulated_scenario=request.simulated_scenario,
         last_provider_scenario=request.last_provider_scenario,
+        api_instance_id=public_instance_id(request.api_instance_id),
+        worker_instance_id=public_instance_id(request.worker_instance_id),
+        provider_instance_id=public_instance_id(request.provider_instance_id),
         created_at=request.created_at,
         updated_at=request.updated_at,
     )
@@ -326,6 +333,7 @@ def create_resource_request(
             memory_per_replica_mb=payload.memory_per_replica_mb,
             replicas=payload.replicas,
             simulated_scenario=payload.simulated_scenario,
+            api_instance_id=instance_id(),
         )
         session.add(request)
         session.flush()

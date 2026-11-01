@@ -243,6 +243,9 @@ class ResourceRequest(TimestampMixin, Base):
     next_retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     processing_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     processing_owner: Mapped[str | None] = mapped_column(String(120))
+    api_instance_id: Mapped[str | None] = mapped_column(String(120))
+    worker_instance_id: Mapped[str | None] = mapped_column(String(120))
+    provider_instance_id: Mapped[str | None] = mapped_column(String(120))
     last_error: Mapped[str | None] = mapped_column(String(500))
     simulated_scenario: Mapped[str] = mapped_column(
         String(30), nullable=False, default="healthy", server_default="healthy"

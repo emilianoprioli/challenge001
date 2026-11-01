@@ -2,7 +2,6 @@ import asyncio
 import contextlib
 import logging
 import random
-import socket
 import sys
 from datetime import UTC, datetime, timedelta
 
@@ -11,6 +10,7 @@ import psycopg
 from sqlalchemy import or_, select
 
 from compute_provisioner.core.config import get_settings
+from compute_provisioner.core.instance import instance_id
 from compute_provisioner.db.models import (
     ApplicationResourceObservation,
     RequestStatus,
@@ -22,7 +22,7 @@ from compute_provisioner.db.session import SessionFactory
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("compute-provisioner-worker")
 settings = get_settings()
-worker_name = f"{socket.gethostname()}-{id(object())}"
+worker_name = instance_id()
 wake_event = asyncio.Event()
 
 FAILURE_PROFILES: dict[str, tuple[tuple[str, float], ...]] = {
@@ -103,6 +103,8 @@ def mark_active(request_id, provider_data: dict) -> None:
         request = session.get(ResourceRequest, request_id, with_for_update=True)
         request.status_id = status_id(session, "ACTIVE")
         request.external_operation_id = provider_data["operation_id"]
+        request.worker_instance_id = request.processing_owner
+        request.provider_instance_id = provider_data.get("provider_instance_id")
         request.processing_owner = None
         request.processing_started_at = None
         request.last_error = None

@@ -1,4 +1,3 @@
-import socket
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -8,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 
 from compute_provisioner.api.router import api_router
 from compute_provisioner.core.config import get_settings
+from compute_provisioner.core.instance import instance_id, public_instance_id
 
 
 def create_app() -> FastAPI:
@@ -24,13 +24,14 @@ def create_app() -> FastAPI:
         allow_credentials=False,
         allow_methods=["GET", "POST", "PUT", "OPTIONS"],
         allow_headers=["Content-Type", "Idempotency-Key"],
+        expose_headers=["X-Instance-ID"],
     )
     application.include_router(api_router)
 
     @application.middleware("http")
     async def identify_instance(request, call_next):
         response = await call_next(request)
-        response.headers["X-Instance-ID"] = socket.gethostname()
+        response.headers["X-Instance-ID"] = public_instance_id(instance_id())
         return response
 
     simulator_directory = Path(__file__).parent / "web" / "simulator"

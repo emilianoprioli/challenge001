@@ -1,5 +1,4 @@
 import asyncio
-import socket
 import uuid
 from contextlib import asynccontextmanager
 from enum import StrEnum
@@ -9,6 +8,7 @@ from fastapi import FastAPI, Header, HTTPException, status
 from pydantic import BaseModel, Field
 
 from compute_provisioner.core.config import get_settings
+from compute_provisioner.core.instance import instance_id, public_instance_id
 
 
 class ProviderScenario(StrEnum):
@@ -29,6 +29,7 @@ class ProvisionedResource(ProvisionRequest):
     resource_id: uuid.UUID
     operation_id: uuid.UUID
     provider_status: str
+    provider_instance_id: str
 
 
 def create_provider_app(
@@ -98,7 +99,7 @@ def create_provider_app(
     async def capacity() -> dict[str, int | str]:
         async with state_lock:
             return {
-                "instance_id": socket.gethostname(),
+                "instance_id": public_instance_id(instance_id()),
                 "max_concurrency": concurrency,
                 "max_queue_size": queue_limit,
                 "resource_count": len(resources),
@@ -121,7 +122,12 @@ def create_provider_app(
                 existing = resources.get(idempotency_key)
                 if existing is not None:
                     comparable = existing.model_dump(
-                        exclude={"resource_id", "operation_id", "provider_status"}
+                        exclude={
+                            "resource_id",
+                            "operation_id",
+                            "provider_status",
+                            "provider_instance_id",
+                        }
                     )
                     if comparable != request.model_dump():
                         raise HTTPException(
@@ -134,6 +140,7 @@ def create_provider_app(
                     resource_id=uuid.uuid4(),
                     operation_id=uuid.uuid4(),
                     provider_status="ACTIVE",
+                    provider_instance_id=instance_id(),
                 )
                 resources[idempotency_key] = resource
 
