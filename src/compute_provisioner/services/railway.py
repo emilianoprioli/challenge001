@@ -112,18 +112,17 @@ class RailwayInfrastructureClient:
             instances = self._instances_for_service(metric_index, service_id)
             services.append(
                 {
-                    "id": service_id,
                     "name": node.get("serviceName"),
                     "region": node.get("region"),
                     "replicas_configured": node.get("numReplicas") or 1,
-                    "deployment": node.get("latestDeployment"),
+                    "deployment": self._public_deployment(node.get("latestDeployment")),
                     "instances": instances,
                 }
             )
         return {
             "enabled": True,
             "connected": True,
-            "environment": {"id": environment.get("id"), "name": environment.get("name")},
+            "environment": {"name": environment.get("name")},
             "services": services,
             "observed_at": datetime.now(UTC).isoformat(),
         }
@@ -141,7 +140,7 @@ class RailwayInfrastructureClient:
             latest = max(values, key=lambda value: value.get("ts", 0))
             item = index.setdefault(
                 (service_id, instance_id),
-                {"instance_id": instance_id, "region": tags.get("region")},
+                {"instance_id": f"replica-{instance_id[:8]}", "region": tags.get("region")},
             )
             item[series.get("measurement", "unknown").lower()] = latest.get("value", 0)
         return index
@@ -151,6 +150,12 @@ class RailwayInfrastructureClient:
         index: dict[tuple[str, str], dict[str, float]], service_id: str | None
     ) -> list[dict[str, float]]:
         return [value for (candidate, _), value in index.items() if candidate == service_id]
+
+    @staticmethod
+    def _public_deployment(deployment: dict[str, Any] | None) -> dict[str, Any] | None:
+        if not deployment:
+            return None
+        return {"status": deployment.get("status"), "created_at": deployment.get("createdAt")}
 
     @staticmethod
     def _error(message: str) -> dict[str, Any]:

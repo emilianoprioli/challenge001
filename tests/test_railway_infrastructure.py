@@ -47,7 +47,7 @@ def test_normalizes_services_replicas_and_instance_metrics() -> None:
                             "measurement": "CPU_USAGE",
                             "tags": {
                                 "serviceId": "service-1",
-                                "deploymentInstanceId": "replica-a",
+                                "deploymentInstanceId": "abcdef12-3456",
                                 "region": "us-east",
                             },
                             "values": [{"ts": 1, "value": 0.25}],
@@ -56,7 +56,7 @@ def test_normalizes_services_replicas_and_instance_metrics() -> None:
                             "measurement": "MEMORY_USAGE_GB",
                             "tags": {
                                 "serviceId": "service-1",
-                                "deploymentInstanceId": "replica-a",
+                                "deploymentInstanceId": "abcdef12-3456",
                                 "region": "us-east",
                             },
                             "values": [{"ts": 1, "value": 0.12}],
@@ -76,5 +76,7 @@ def test_normalizes_services_replicas_and_instance_metrics() -> None:
 
     assert snapshot["connected"] is True
     assert snapshot["services"][0]["replicas_configured"] == 2
+    assert snapshot["environment"] == {"name": "production"}
+    assert snapshot["services"][0]["instances"][0]["instance_id"] == "replica-abcdef12"
     assert snapshot["services"][0]["instances"][0]["cpu_usage"] == 0.25
     assert snapshot["services"][0]["instances"][0]["memory_usage_gb"] == 0.12
