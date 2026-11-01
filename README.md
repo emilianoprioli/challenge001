@@ -43,6 +43,22 @@ uvicorn compute_provisioner.provider_simulator:app --port 8001
 - `error`: respuesta `503`.
 
 El proveedor conserva recursos en memoria y aplica idempotencia por clave.
+También limita concurrencia y longitud de cola; al agotarse ambas responde `429` con
+`Retry-After`, permitiendo estudiar backpressure sin agotar el contenedor.
+
+## Observabilidad de capacidad
+
+`GET /api/v1/platform/snapshot` agrega una fotografía operativa del sistema:
+
+- instancia de API que respondió;
+- uso del pool de PostgreSQL;
+- solicitudes pendientes, en procesamiento y en estado desconocido;
+- antigüedad del trabajo pendiente;
+- concurrencia, cola, rechazos y operaciones completadas por el proveedor.
+
+El visualizador de capacidad está disponible en `/simulator/capacity.html`. Ejecutado como
+cliente local también acepta `?api=https://<dominio-api>` y descubre qué réplicas de API
+responden detrás del balanceador.
 
 ## Perfiles de fallos
 

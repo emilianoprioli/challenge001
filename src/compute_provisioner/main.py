@@ -1,3 +1,4 @@
+import socket
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -25,6 +26,12 @@ def create_app() -> FastAPI:
         allow_headers=["Content-Type", "Idempotency-Key"],
     )
     application.include_router(api_router)
+
+    @application.middleware("http")
+    async def identify_instance(request, call_next):
+        response = await call_next(request)
+        response.headers["X-Instance-ID"] = socket.gethostname()
+        return response
 
     simulator_directory = Path(__file__).parent / "web" / "simulator"
     application.mount(

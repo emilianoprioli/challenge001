@@ -37,6 +37,7 @@ COMPUTE_DATABASE_POOL_SIZE=5
 COMPUTE_DATABASE_MAX_OVERFLOW=5
 COMPUTE_DATABASE_POOL_TIMEOUT_SECONDS=10
 COMPUTE_CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+COMPUTE_PROVIDER_URL=http://provider.railway.internal:8080
 ```
 
 ## Provider
@@ -49,6 +50,17 @@ COMPUTE_CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 ```text
 uvicorn compute_provisioner.provider_simulator:app --host 0.0.0.0 --port 8080
 ```
+
+Variables para que la capacidad sea finita y observable:
+
+```text
+COMPUTE_PROVIDER_MAX_CONCURRENCY=5
+COMPUTE_PROVIDER_MAX_QUEUE_SIZE=20
+COMPUTE_PROVIDER_PROCESSING_MS=250
+```
+
+`GET /capacity` permanece en la red privada. La API consulta ese endpoint y publica un
+snapshot agregado, sin exponer directamente el proveedor.
 
 ## Worker
 
@@ -84,6 +96,16 @@ Abrir, reemplazando el dominio:
 http://localhost:5173/?api=https://api-production.up.railway.app
 ```
 
+La vista de capacidad se abre con:
+
+```text
+http://localhost:5173/capacity.html?api=https://api-production.up.railway.app
+```
+
+La cantidad de instancias de API se descubre observando el header `X-Instance-ID` de las
+respuestas. Con varias replicas en Railway, el balanceador irá mostrando los distintos
+procesos atendiendo las consultas.
+
 La API debe incluir exactamente el origen local utilizado dentro de
 `COMPUTE_CORS_ALLOWED_ORIGINS`.
 
@@ -94,5 +116,6 @@ La API debe incluir exactamente el origen local utilizado dentro de
 3. Crear una request desde el visualizador.
 4. Confirmar en logs que el worker recibe `NOTIFY`.
 5. Confirmar `PENDING -> PROVISIONING -> ACTIVE`.
+6. Abrir la vista de capacidad y confirmar pool, cola y capacidad del provider.
 
 No habilitar dominios publicos para PostgreSQL, Worker ni Provider.

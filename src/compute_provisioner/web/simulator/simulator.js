@@ -7,6 +7,7 @@ const remoteApi = new URLSearchParams(window.location.search).get("api");
 const apiBase = remoteApi ? remoteApi.replace(/\/$/, "") : "";
 document.getElementById("api-target").textContent = remoteApi ? new URL(apiBase).hostname : "API local";
 document.getElementById("edge-link").href = `./edge.html${remoteApi ? `?api=${encodeURIComponent(apiBase)}` : ""}`;
+document.getElementById("capacity-link").href = `./capacity.html${remoteApi ? `?api=${encodeURIComponent(apiBase)}` : ""}`;
 const tracked = new Map();
 let demo;
 let sequence = 0;

@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     provider_timeout_seconds: float = 3.0
     worker_poll_seconds: float = 30.0
     worker_max_attempts: int = 4
+    provider_max_concurrency: int = 5
+    provider_max_queue_size: int = 20
+    provider_processing_ms: int = 250
     cors_allowed_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 
     @property

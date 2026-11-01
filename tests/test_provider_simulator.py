@@ -1,5 +1,7 @@
+import asyncio
 import uuid
 
+import httpx
 from fastapi.testclient import TestClient
 
 from compute_provisioner.provider_simulator import create_provider_app
@@ -47,3 +49,22 @@ def test_provider_can_simulate_an_outage() -> None:
     )
 
     assert response.status_code == 503
+
+
+def test_provider_rejects_when_concurrency_and_queue_are_full() -> None:
+    async def exercise_capacity() -> list[int]:
+        app = create_provider_app(max_concurrency=1, max_queue_size=1, processing_ms=200)
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://provider") as client:
+            responses = await asyncio.gather(
+                *(
+                    client.put(f"/resources/capacity-{index}", json=provision_payload())
+                    for index in range(3)
+                )
+            )
+        return [response.status_code for response in responses]
+
+    statuses = asyncio.run(exercise_capacity())
+
+    assert statuses.count(200) == 2
+    assert statuses.count(429) == 1
