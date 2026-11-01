@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import field_validator
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -27,8 +27,14 @@ class Settings(BaseSettings):
     provider_max_concurrency: int = 5
     provider_max_queue_size: int = 20
     provider_processing_ms: int = 250
-    railway_project_token: str = ""
-    railway_environment_id: str = ""
+    railway_project_token: str = Field(
+        default="",
+        validation_alias=AliasChoices("COMPUTE_RAILWAY_PROJECT_TOKEN", "RAILWAY_TOKEN"),
+    )
+    railway_environment_id: str = Field(
+        default="",
+        validation_alias=AliasChoices("COMPUTE_RAILWAY_ENVIRONMENT_ID", "RAILWAY_ENVIRONMENT_ID"),
+    )
     railway_metrics_cache_seconds: float = 10.0
     cors_allowed_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 

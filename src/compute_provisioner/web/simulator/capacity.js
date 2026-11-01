@@ -20,7 +20,7 @@ function renderRailway(railway) {
   status.className = "status-pill";
   if (!railway.enabled) {
     status.textContent = "No conectado";
-    text("railway-message", "Configurá COMPUTE_RAILWAY_PROJECT_TOKEN y COMPUTE_RAILWAY_ENVIRONMENT_ID en la API.");
+    text("railway-message", "Configurá RAILWAY_TOKEN en la API; Railway aporta el Environment ID automáticamente.");
     services.innerHTML = "";
     return;
   }

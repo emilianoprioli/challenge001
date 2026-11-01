@@ -38,12 +38,13 @@ COMPUTE_DATABASE_MAX_OVERFLOW=5
 COMPUTE_DATABASE_POOL_TIMEOUT_SECONDS=10
 COMPUTE_CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 COMPUTE_PROVIDER_URL=http://provider.railway.internal:8080
-COMPUTE_RAILWAY_PROJECT_TOKEN=<project-token>
-COMPUTE_RAILWAY_ENVIRONMENT_ID=<environment-id>
+RAILWAY_TOKEN=<project-token>
+# RAILWAY_ENVIRONMENT_ID es provista automaticamente por Railway
 COMPUTE_RAILWAY_METRICS_CACHE_SECONDS=10
 ```
 
 El token se configura unicamente en el servicio API y nunca se entrega al visualizador.
+Railway ya inyecta `RAILWAY_ENVIRONMENT_ID`, por lo que no hace falta copiar el ID a mano.
 Usar un Project Token limitado al entorno de este challenge. El adaptador consulta Railway
 en modo lectura y conserva el resultado 10 segundos para respetar los limites de la API.
 
