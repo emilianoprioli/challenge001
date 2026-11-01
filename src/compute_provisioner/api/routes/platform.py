@@ -9,13 +9,19 @@ from compute_provisioner.api.routes.resource_requests import DbSession
 from compute_provisioner.core.config import get_settings
 from compute_provisioner.db.models import RequestStatus, ResourceRequest
 from compute_provisioner.db.session import engine
+from compute_provisioner.services.railway import RailwayInfrastructureClient
 
 router = APIRouter(prefix="/api/v1/platform", tags=["platform"])
+settings = get_settings()
+railway_client = RailwayInfrastructureClient(
+    token=settings.railway_project_token,
+    environment_id=settings.railway_environment_id,
+    cache_seconds=settings.railway_metrics_cache_seconds,
+)
 
 
 @router.get("/snapshot")
 def platform_snapshot(session: DbSession) -> dict:
-    settings = get_settings()
     counts = dict(
         session.execute(
             select(RequestStatus.code, func.count(ResourceRequest.id))
@@ -58,4 +64,5 @@ def platform_snapshot(session: DbSession) -> dict:
             "overflow_in_use": max(0, pool.overflow()),
         },
         "provider": provider,
+        "railway": railway_client.snapshot(),
     }

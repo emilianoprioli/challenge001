@@ -55,6 +55,8 @@ También limita concurrencia y longitud de cola; al agotarse ambas responde `429
 - solicitudes pendientes, en procesamiento y en estado desconocido;
 - antigüedad del trabajo pendiente;
 - concurrencia, cola, rechazos y operaciones completadas por el proveedor.
+- servicios, deployments, replicas y consumo CPU/RAM del entorno Railway, si se configura
+  un Project Token en la API.
 
 El visualizador de capacidad está disponible en `/simulator/capacity.html`. Ejecutado como
 cliente local también acepta `?api=https://<dominio-api>` y descubre qué réplicas de API

@@ -38,7 +38,14 @@ COMPUTE_DATABASE_MAX_OVERFLOW=5
 COMPUTE_DATABASE_POOL_TIMEOUT_SECONDS=10
 COMPUTE_CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 COMPUTE_PROVIDER_URL=http://provider.railway.internal:8080
+COMPUTE_RAILWAY_PROJECT_TOKEN=<project-token>
+COMPUTE_RAILWAY_ENVIRONMENT_ID=<environment-id>
+COMPUTE_RAILWAY_METRICS_CACHE_SECONDS=10
 ```
+
+El token se configura unicamente en el servicio API y nunca se entrega al visualizador.
+Usar un Project Token limitado al entorno de este challenge. El adaptador consulta Railway
+en modo lectura y conserva el resultado 10 segundos para respetar los limites de la API.
 
 ## Provider
 
@@ -105,6 +112,10 @@ http://localhost:5173/capacity.html?api=https://api-production.up.railway.app
 La cantidad de instancias de API se descubre observando el header `X-Instance-ID` de las
 respuestas. Con varias replicas en Railway, el balanceador irá mostrando los distintos
 procesos atendiendo las consultas.
+
+La misma vista combina ese descubrimiento desde el cliente con el control plane real de
+Railway: servicios, estado del deployment, replicas configuradas y muestras de CPU/RAM
+agrupadas por `DEPLOYMENT_INSTANCE_ID`.
 
 La API debe incluir exactamente el origen local utilizado dentro de
 `COMPUTE_CORS_ALLOWED_ORIGINS`.
