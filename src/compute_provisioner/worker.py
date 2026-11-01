@@ -7,7 +7,7 @@ from datetime import UTC, datetime, timedelta
 
 import httpx
 import psycopg
-from sqlalchemy import or_, select
+from sqlalchemy import or_, select, update
 
 from compute_provisioner.core.config import get_settings
 from compute_provisioner.core.instance import instance_id
@@ -53,6 +53,24 @@ def claim_next_request() -> ResourceRequest | None:
         if control is not None and control.worker_paused:
             return None
         pending_id = status_id(session, "PENDING")
+        provisioning_id = status_id(session, "PROVISIONING")
+        lease_expired_before = now - timedelta(seconds=settings.worker_lease_seconds)
+        recovered = session.execute(
+            update(ResourceRequest)
+            .where(
+                ResourceRequest.status_id == provisioning_id,
+                ResourceRequest.processing_started_at < lease_expired_before,
+            )
+            .values(
+                status_id=pending_id,
+                processing_owner=None,
+                processing_started_at=None,
+                next_retry_at=now,
+                last_error="worker lease expired; request recovered by another replica",
+            )
+        ).rowcount
+        if recovered:
+            logger.warning("Recovered %s request(s) with expired worker leases", recovered)
         request = session.scalar(
             select(ResourceRequest)
             .where(

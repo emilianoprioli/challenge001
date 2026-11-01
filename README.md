@@ -42,8 +42,9 @@ uvicorn compute_provisioner.provider_simulator:app --port 8001
 - `timeout`: demora de 30 segundos para superar el timeout del cliente;
 - `error`: respuesta `503`.
 
-El proveedor conserva recursos en memoria y aplica idempotencia por clave.
-También limita concurrencia y longitud de cola; al agotarse ambas responde `429` con
+El proveedor persiste sus recursos e idempotencia en PostgreSQL, por lo que sus réplicas
+son intercambiables. También limita concurrencia y longitud de cola por réplica; al
+agotarse ambas responde `429` con
 `Retry-After`, permitiendo estudiar backpressure sin agotar el contenedor.
 
 ## Observabilidad de capacidad

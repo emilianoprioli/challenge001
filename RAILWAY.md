@@ -86,11 +86,14 @@ COMPUTE_PROVIDER_URL=http://provider.railway.internal:8080
 COMPUTE_PROVIDER_TIMEOUT_SECONDS=3
 COMPUTE_WORKER_POLL_SECONDS=30
 COMPUTE_WORKER_MAX_ATTEMPTS=4
+COMPUTE_WORKER_LEASE_SECONDS=30
 ```
 
 El worker mantiene una conexion PostgreSQL para `LISTEN resource_requests`. La fila en
 `resource_requests` es la garantia durable: si se pierde una notificacion, el polling de
 respaldo encuentra el trabajo como maximo 30 segundos despues.
+Varias replicas compiten mediante `FOR UPDATE SKIP LOCKED`. Si una muere procesando una
+fila, otra devuelve el lease vencido a `PENDING` y reintenta con la misma clave idempotente.
 
 ## Visualizador como cliente externo
 

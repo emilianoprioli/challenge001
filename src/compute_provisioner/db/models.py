@@ -309,3 +309,20 @@ class SimulationControl(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
     )
+
+
+class ProviderResource(Base):
+    __tablename__ = "provider_resources"
+
+    idempotency_key: Mapped[str] = mapped_column(String(255), primary_key=True)
+    application_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+    cpu_per_replica: Mapped[Decimal] = mapped_column(Numeric(12, 3), nullable=False)
+    memory_per_replica_mb: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    replicas: Mapped[int] = mapped_column(Integer, nullable=False)
+    resource_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False, unique=True)
+    operation_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False, unique=True)
+    provider_status: Mapped[str] = mapped_column(String(50), nullable=False)
+    provider_instance_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )

@@ -16,6 +16,7 @@ def test_expected_tables_are_registered() -> None:
         "resource_requests",
         "audit_events",
         "simulation_controls",
+        "provider_resources",
     }
 
     assert set(Base.metadata.tables) == expected_tables
