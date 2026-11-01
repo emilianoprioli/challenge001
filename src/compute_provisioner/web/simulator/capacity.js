@@ -43,7 +43,7 @@ function renderRailway(railway) {
       return `<div class="replica"><code>${escapeHtml(instance.instance_id)}</code><small>${escapeHtml(instance.region || service.region || "región desconocida")}</small><small>CPU ${cpu.toFixed(3)}${cpuLimit ? ` / ${cpuLimit.toFixed(1)}` : ""}</small><small>RAM ${memory.toFixed(3)} GB${memoryLimit ? ` / ${memoryLimit.toFixed(1)} GB` : ""}</small></div>`;
     }).join("") : "<div class=\"replica\"><small>Sin muestras recientes por réplica</small></div>";
     const deployment = service.deployment || {};
-    return `<article class="service-card"><div class="service-head"><h3>${escapeHtml(service.name || service.id)}</h3><span class="deployment">${escapeHtml(deployment.status || "UNKNOWN")}</span></div><p class="service-meta">${Number(service.replicas_configured || 0)} réplica(s) configurada(s) · ${escapeHtml(service.region || "sin región")}</p><div class="replica-grid">${replicas}</div></article>`;
+    return `<article class="service-card"><div class="service-head"><h3>${escapeHtml(service.name || service.id)}</h3><span class="deployment">${escapeHtml(deployment.status || "UNKNOWN")}</span></div><p class="service-meta">${Number(service.replicas_active || 0)} activa(s) · ${Number(service.replicas_observed || 0)} observada(s) en 5 min</p><div class="replica-grid">${replicas}</div></article>`;
   }).join("");
 }
 

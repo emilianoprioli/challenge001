@@ -22,7 +22,6 @@ query Infrastructure($environmentId: String!, $startDate: DateTime!) {
           serviceName
           region
           numReplicas
-          multiRegionConfig
           latestDeployment { id status createdAt }
         }
       }
@@ -111,11 +110,20 @@ class RailwayInfrastructureClient:
             node = edge.get("node") or {}
             service_id = node.get("serviceId")
             instances = self._instances_for_service(metric_index, service_id)
+            latest_sample = max(
+                (instance.get("last_sample_at", 0) for instance in instances), default=0
+            )
+            active_window = 60_000 if latest_sample > 1_000_000_000_000 else 60
             services.append(
                 {
                     "name": node.get("serviceName"),
                     "region": node.get("region"),
-                    "replicas_configured": self._configured_replicas(node),
+                    "replicas_reported_legacy": node.get("numReplicas"),
+                    "replicas_active": sum(
+                        instance.get("last_sample_at", 0) >= latest_sample - active_window
+                        for instance in instances
+                    ),
+                    "replicas_observed": len(instances),
                     "deployment": self._public_deployment(node.get("latestDeployment")),
                     "instances": instances,
                 }
@@ -141,8 +149,13 @@ class RailwayInfrastructureClient:
             latest = max(values, key=lambda value: value.get("ts", 0))
             item = index.setdefault(
                 (service_id, instance_id),
-                {"instance_id": f"replica-{instance_id[:8]}", "region": tags.get("region")},
+                {
+                    "instance_id": f"replica-{instance_id[:8]}",
+                    "region": tags.get("region"),
+                    "last_sample_at": latest.get("ts", 0),
+                },
             )
+            item["last_sample_at"] = max(item["last_sample_at"], latest.get("ts", 0))
             item[series.get("measurement", "unknown").lower()] = latest.get("value", 0)
         return index
 
@@ -157,16 +170,6 @@ class RailwayInfrastructureClient:
         if not deployment:
             return None
         return {"status": deployment.get("status"), "created_at": deployment.get("createdAt")}
-
-    @staticmethod
-    def _configured_replicas(service: dict[str, Any]) -> int:
-        regions = service.get("multiRegionConfig") or {}
-        configured = sum(
-            region.get("numReplicas", 0)
-            for region in regions.values()
-            if isinstance(region, dict)
-        )
-        return configured or service.get("numReplicas") or 1
 
     @staticmethod
     def _error(message: str) -> dict[str, Any]:
