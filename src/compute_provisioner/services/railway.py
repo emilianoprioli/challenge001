@@ -30,8 +30,6 @@ query Infrastructure($environmentId: String!, $startDate: DateTime!) {
   metrics(
     environmentId: $environmentId
     startDate: $startDate
-    sampleRateSeconds: 15
-    averagingWindowSeconds: 15
     groupBy: [SERVICE_ID, DEPLOYMENT_INSTANCE_ID, REGION]
     measurements: [CPU_USAGE, CPU_LIMIT, MEMORY_USAGE_GB, MEMORY_LIMIT_GB]
   ) {
